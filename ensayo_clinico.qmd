@@ -1,0 +1,129 @@
+---
+title: "Base de datos de un ensayo clínico"
+author: "Naomi Parimango"
+format: html
+---
+# Introducción
+
+El objetivo de este script es generar una base de datos simulada correspondiente a un ensayo clínico aleatorizado con 1000 individuos. Se incluyen variables de exposición, desenlace y posibles factores de confusión, siguiendo criterios realistas basados en población peruana.
+
+# 1. Configuración inicial y carga de librerías
+
+En esta sección se cargan los paquetes necesarios y se establece una semilla para asegurar la reproducibilidad del análisis.
+
+```{r}
+# librerías necesarias
+library(dplyr)
+library(openxlsx)   
+set.seed(123)       
+
+```
+# 2. Generación de variables del estudio
+
+Se simulan 1000 participantes y se construyen las siguientes variables:
+
+- **Exposición (dieta):** variable binaria (0 = no expuesto, 1 = expuesto), asignada aleatoriamente.
+- **Desenlace (pérdida de peso):** variable continua en el rango -20 a +20 kg, con distribución diferenciada según exposición.
+- **Edad:** valores entre 18 y 60 años, distribuidos de forma aproximada a la población peruana.
+- **Género:** variable binaria (0 = femenino, 1 = masculino).
+- **Actividad física:** frecuencia cardíaca en fase 2, entre 70 y 150.
+- **Nivel socioeconómico:** valores de 0 a 4 (A a E), según proporciones nacionales.
+
+La base de datos resultante se almacena en un objeto llamado `ensayo`.
+
+```{r}
+# Número de individuos
+n <- 1000  
+
+# Exposición a dieta (aleatorización)
+dieta <- rbinom(n, 1, 0.5)
+
+# Pérdida de peso (kg, rango -20 a 20)
+perdida_peso <- round(rnorm(n, mean = -3 * dieta, sd = 5), 1)
+perdida_peso <- pmin(pmax(perdida_peso, -20), 20)
+
+# Edad con distribución aproximada a la población peruana
+edad <- sample(18:60, n, replace = TRUE, prob = dpois(18:60, lambda = 30))
+
+# Género (0=femenino, 1=masculino)
+genero <- rbinom(n, 1, 0.5)
+
+# Actividad física (frecuencia cardiaca, 70-150)
+actividad_fisica <- round(runif(n, 70, 150), 0)
+
+# Nivel socioeconómico (0=A,1=B,2=C,3=D,4=E)
+nse <- sample(0:4, n, replace = TRUE, prob = c(0.05, 0.15, 0.3, 0.3, 0.2))
+
+# Construir la base de datos
+ensayo <- data.frame(
+  id = 1:n,
+  dieta,
+  perdida_peso,
+  edad,
+  genero,
+  actividad_fisica,
+  nse
+)
+
+head(ensayo)
+
+
+```
+
+# 3. Construcción de la metadata
+
+Se elabora una tabla descriptiva (metadata) que documenta cada variable, su significado y tipo. Esto permite una interpretación clara de la base de datos y facilita su uso en análisis posteriores.
+
+```{r}
+metadata <- data.frame(
+  Variable = c("id","dieta","perdida_peso","edad","genero","actividad_fisica","nse"),
+  Descripcion = c(
+    "Identificador del sujeto",
+    "Exposición a dieta (0=no, 1=sí)",
+    "Pérdida de peso en kg (-20 a 20)",
+    "Edad en años (18-60)",
+    "Género (0=femenino, 1=masculino)",
+    "Frecuencia cardiaca en fase 2 (70-150)",
+    "Nivel socioeconómico (0=A,1=B,2=C,3=D,4=E)"
+  ),
+  Tipo = c(
+    "numérico",
+    "binario",
+    "numérico",
+    "numérico",
+    "binario",
+    "numérico",
+    "categórico"
+  )
+)
+
+metadata
+
+```
+# 4. Exportación del archivo final
+
+Se genera un archivo Excel con dos hojas:
+
+- **datos_codificados:** contiene la base completa con 1000 observaciones.
+- **metadata:** incluye la descripción y el tipo de cada variable.
+
+Este archivo se guarda como `ensayo_clinico.xlsx` en el directorio de trabajo.
+
+```{r}
+wb <- createWorkbook()
+
+addWorksheet(wb, "datos_codificados")
+addWorksheet(wb, "metadata")
+
+writeData(wb, "datos_codificados", ensayo)
+writeData(wb, "metadata", metadata)
+
+saveWorkbook(
+  wb,
+  file.path(Sys.getenv("USERPROFILE"), "Documents", "ensayo_clinico_v2.xlsx"),
+  overwrite = TRUE
+)
+
+
+```
+
